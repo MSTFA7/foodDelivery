@@ -1,4 +1,4 @@
-  /* ── RESET & BASE ── */
+/* ── RESET & BASE ── */
   *,
   *::before,
   *::after {
@@ -1671,6 +1671,133 @@
       padding: 32px 0 48px;
   }
 
+  /* ═══════════════════════════════════════════
+   PAGE: RESTAURANT APPLICATION / ONBOARDING
+═══════════════════════════════════════════ */
+  .progress-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 40px;
+      position: relative;
+  }
+
+  .progress-steps::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+  }
+
+  .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      position: relative;
+      z-index: 1;
+  }
+
+  .progress-step-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text-sub);
+      transition: all .2s;
+  }
+
+  .progress-step.active .progress-step-circle {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+  }
+
+  .progress-step.completed .progress-step-circle {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+  }
+
+  .progress-step span {
+      font-size: 12px;
+      color: var(--text-sub);
+      font-weight: 500;
+      text-align: center;
+  }
+
+  .progress-step.active span {
+      color: var(--text);
+      font-weight: 600;
+  }
+
+  .onboarding-step {
+      display: none;
+  }
+
+  .onboarding-step.active {
+      display: block;
+      animation: fadeInUp .3s ease;
+  }
+
+  @keyframes fadeInUp {
+      from {
+          opacity: 0;
+          transform: translateY(10px);
+      }
+      to {
+          opacity: 1;
+          transform: translateY(0);
+      }
+  }
+
+  .review-section {
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+  }
+
+  .review-section:last-of-type {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+  }
+
+  .review-grid {
+      display: grid;
+      gap: 12px;
+  }
+
+  .review-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+  }
+
+  .review-label {
+      font-size: 13px;
+      color: var(--text-sub);
+      font-weight: 500;
+  }
+
+  .review-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: right;
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 640px) {
       .restaurant-grid {
@@ -1687,5 +1814,15 @@
 
       .nav-badge span {
           display: none;
+      }
+
+      .progress-step span {
+          font-size: 10px;
+      }
+
+      .progress-step-circle {
+          width: 32px;
+          height: 32px;
+          font-size: 12px;
       }
   }

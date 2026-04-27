@@ -1,4 +1,3 @@
-
 /* ════════════════════════════════════════════════════
    FIREBASE CONFIG — Firebase-only mode
    Replace these values with your project values if needed.
@@ -97,7 +96,6 @@ function fbListenRestaurants(cb) {
    AUTH MODULE
 ════════════════════════════════════════════════════ */
 window.Auth = {
-    currentRole: "customer",
     currentTab: "login",
 
     async submit() {
@@ -113,7 +111,7 @@ window.Auth = {
                 await Auth._login(email, password);
             } else {
                 if (!name) throw new Error("Please enter your full name.");
-                await Auth._register(name, email, password, Auth.currentRole);
+                await Auth._register(name, email, password, "customer"); // Always customer
             }
         } catch (e) {
             UI.setAuthError(e.message || "Something went wrong.");
@@ -832,6 +830,214 @@ Pages.Setup = {
 window.Owner = Pages.Owner;
 
 /* ════════════════════════════════════════════════════
+   APPLY / ONBOARDING MODULE
+════════════════════════════════════════════════════ */
+window.Apply = {
+    currentStep: 1,
+    formData: {},
+
+    nextStep(step) {
+        // Validate current step
+        if (!Apply.validateStep(step)) return;
+
+        // Save data from current step
+        Apply.saveStepData(step);
+
+        // Move to next step
+        Apply.currentStep = step + 1;
+        Apply.showStep(Apply.currentStep);
+
+        // Update review if on final step
+        if (Apply.currentStep === 4) {
+            Apply.populateReview();
+        }
+    },
+
+    prevStep(step) {
+        Apply.currentStep = step - 1;
+        Apply.showStep(Apply.currentStep);
+    },
+
+    showStep(stepNum) {
+        // Hide all steps
+        document.querySelectorAll('.onboarding-step').forEach(s => s.classList.remove('active'));
+        // Show current step
+        document.getElementById(`apply-step-${stepNum}`).classList.add('active');
+
+        // Update progress indicators
+        for (let i = 1; i <= 4; i++) {
+            const indicator = document.getElementById(`step-indicator-${i}`);
+            indicator.classList.remove('active', 'completed');
+            if (i < stepNum) indicator.classList.add('completed');
+            if (i === stepNum) indicator.classList.add('active');
+        }
+
+        // Update completed step circles with checkmark
+        document.querySelectorAll('.progress-step.completed .progress-step-circle').forEach(circle => {
+            circle.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>';
+        });
+
+        // Scroll to top
+        window.scrollTo(0, 0);
+    },
+
+    validateStep(step) {
+        const errorEl = document.getElementById(`apply-error-${step}`);
+        errorEl.style.display = 'none';
+
+        if (step === 1) {
+            const name = document.getElementById('apply-restaurant-name').value.trim();
+            const cuisine = document.getElementById('apply-cuisine').value.trim();
+            const phone = document.getElementById('apply-phone').value.trim();
+            const address = document.getElementById('apply-address').value.trim();
+
+            if (!name || !cuisine || !phone || !address) {
+                errorEl.textContent = 'Please fill in all required fields.';
+                errorEl.style.display = 'block';
+                return false;
+            }
+        }
+
+        if (step === 2) {
+            const name = document.getElementById('apply-owner-name').value.trim();
+            const email = document.getElementById('apply-email').value.trim();
+            const password = document.getElementById('apply-password').value;
+
+            if (!name || !email || !password) {
+                errorEl.textContent = 'Please fill in all required fields.';
+                errorEl.style.display = 'block';
+                return false;
+            }
+
+            if (password.length < 6) {
+                errorEl.textContent = 'Password must be at least 6 characters.';
+                errorEl.style.display = 'block';
+                return false;
+            }
+        }
+
+        return true;
+    },
+
+    saveStepData(step) {
+        if (step === 1) {
+            Apply.formData.restaurantName = document.getElementById('apply-restaurant-name').value.trim();
+            Apply.formData.cuisine = document.getElementById('apply-cuisine').value.trim();
+            Apply.formData.phone = document.getElementById('apply-phone').value.trim();
+            Apply.formData.address = document.getElementById('apply-address').value.trim();
+            Apply.formData.description = document.getElementById('apply-description').value.trim();
+        }
+
+        if (step === 2) {
+            Apply.formData.ownerName = document.getElementById('apply-owner-name').value.trim();
+            Apply.formData.email = document.getElementById('apply-email').value.trim();
+            Apply.formData.password = document.getElementById('apply-password').value;
+        }
+
+        if (step === 3) {
+            Apply.formData.deliveryTime = document.getElementById('apply-delivery-time').value.trim();
+            Apply.formData.deliveryFee = parseFloat(document.getElementById('apply-delivery-fee').value) || 2.99;
+            Apply.formData.minOrder = parseFloat(document.getElementById('apply-min-order').value) || 15;
+            Apply.formData.coverImage = document.getElementById('apply-cover-image').value.trim();
+        }
+    },
+
+    populateReview() {
+        document.getElementById('review-name').textContent = Apply.formData.restaurantName;
+        document.getElementById('review-cuisine').textContent = Apply.formData.cuisine;
+        document.getElementById('review-phone').textContent = Apply.formData.phone;
+        document.getElementById('review-address').textContent = Apply.formData.address;
+        document.getElementById('review-owner').textContent = Apply.formData.ownerName;
+        document.getElementById('review-email').textContent = Apply.formData.email;
+        document.getElementById('review-time').textContent = Apply.formData.deliveryTime;
+        document.getElementById('review-fee').textContent = `$${Apply.formData.deliveryFee.toFixed(2)}`;
+        document.getElementById('review-min').textContent = `$${Apply.formData.minOrder.toFixed(2)}`;
+    },
+
+    async submit() {
+        const errorEl = document.getElementById('apply-error-4');
+        errorEl.style.display = 'none';
+        UI.setBtnLoading('apply-submit-btn', true, 'Creating account…');
+
+        try {
+            if (!FB_CONFIGURED) throw new Error("Firebase is not configured.");
+
+            // 1. Create auth account
+            const cred = await createUserWithEmailAndPassword(
+                auth,
+                Apply.formData.email,
+                Apply.formData.password
+            );
+
+            // 2. Create user profile as owner
+            const userProfile = {
+                name: Apply.formData.ownerName,
+                email: Apply.formData.email,
+                role: 'owner',
+                phone: Apply.formData.phone,
+                address: Apply.formData.address,
+                restaurantId: '',
+                createdAt: serverTimestamp()
+            };
+            await fbSetUser(cred.user.uid, userProfile);
+
+            // 3. Create restaurant
+            const restaurantData = {
+                ownerId: cred.user.uid,
+                name: Apply.formData.restaurantName,
+                cuisine: Apply.formData.cuisine,
+                description: Apply.formData.description,
+                deliveryTime: Apply.formData.deliveryTime,
+                deliveryFee: Apply.formData.deliveryFee,
+                minOrder: Apply.formData.minOrder,
+                image: Apply.formData.coverImage,
+                rating: 5.0,
+                menu: []
+            };
+            const restaurantId = await fbAddRestaurant(restaurantData);
+
+            // 4. Link restaurant to user
+            await fbSetUser(cred.user.uid, { restaurantId });
+
+            // 5. Set user and navigate
+            State.user = { id: cred.user.uid, ...userProfile, restaurantId };
+            await App.setUser(State.user);
+
+            UI.setBtnLoading('apply-submit-btn', false, 'Submit Application');
+            Apply.reset();
+            App.showPage('owner');
+
+        } catch (e) {
+            let msg = e.message || 'Could not create account.';
+            if (msg.includes('email-already-in-use')) {
+                msg = 'This email is already registered. Try logging in instead.';
+            }
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            UI.setBtnLoading('apply-submit-btn', false, 'Submit Application');
+            console.error('Application error:', e);
+        }
+    },
+
+    reset() {
+        Apply.currentStep = 1;
+        Apply.formData = {};
+        Apply.showStep(1);
+        // Clear all form fields
+        document.querySelectorAll('#page-apply input').forEach(input => {
+            if (input.type === 'number') {
+                input.value = input.defaultValue || '';
+            } else {
+                input.value = '';
+            }
+        });
+        document.querySelectorAll('#page-apply .alert').forEach(alert => {
+            alert.style.display = 'none';
+        });
+    }
+};
+
+/* ════════════════════════════════════════════════════
    UI MODULE
 ════════════════════════════════════════════════════ */
 window.UI = {
@@ -897,13 +1103,6 @@ window.UI = {
         document.getElementById("auth-submit-btn").textContent = tab === "login" ? "Sign in" : "Create account";
         UI.setAuthError("");
     },
-
-    setRole(role) {
-        Auth.currentRole = role;
-        document.getElementById("role-customer").classList.toggle("active", role === "customer");
-        document.getElementById("role-owner").classList.toggle("active", role === "owner");
-    },
-
 
     setAuthError(msg) {
         const el = document.getElementById("auth-error");
