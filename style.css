@@ -1798,6 +1798,70 @@
       text-align: right;
   }
 
+  /* ═══════════════════════════════════════════
+   MODALS (Rating)
+═══════════════════════════════════════════ */
+  .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 400;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+  }
+
+  .modal-card {
+      width: 100%;
+      max-width: 460px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 18px;
+  }
+
+  .rating-stars {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+  }
+
+  .star-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+  }
+
+  .star-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: transparent;
+      stroke: var(--text-sub);
+      stroke-width: 1.6;
+      transition: fill .12s ease, stroke .12s ease;
+  }
+
+  .star-btn.active {
+      border-color: #f0c040;
+      background: rgba(240, 192, 64, 0.15);
+      transform: translateY(-1px);
+  }
+
+  .star-btn.active svg {
+      fill: #f0c040;
+      stroke: #f0c040;
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 640px) {
       .restaurant-grid {

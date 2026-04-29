@@ -23,7 +23,7 @@ import {
 import {
     getFirestore, collection, doc, getDoc, getDocs,
     setDoc, addDoc, updateDoc, query, where,
-    orderBy, onSnapshot, serverTimestamp
+    orderBy, onSnapshot, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* ── Init ── */
@@ -50,6 +50,17 @@ const State = {
 const ORDER_STATUSES = ["Pending", "Confirmed", "Preparing", "Out for Delivery", "Delivered"];
 const STATUS_CLASSES = { Pending: "badge-pending", Confirmed: "badge-confirmed", Preparing: "badge-preparing", "Out for Delivery": "badge-delivery", Delivered: "badge-delivered" };
 
+const RESTAURANT_STATUSES = {
+    pending: "pending_review",
+    approved: "approved",
+    rejected: "rejected",
+};
+
+function isCustomer() { return State.user?.role === "customer"; }
+function isOwner() { return State.user?.role === "owner"; }
+function isManager() { return State.user?.role === "manager"; }
+function isRestaurantApproved(r) { return (r?.status || RESTAURANT_STATUSES.approved) === RESTAURANT_STATUSES.approved; }
+
 /* ════════════════════════════════════════════════════
    FIRESTORE HELPERS
 ════════════════════════════════════════════════════ */
@@ -63,6 +74,33 @@ async function fbSetUser(uid, data) {
 async function fbGetRestaurants() {
     const snap = await getDocs(collection(db, "restaurants"));
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function fbGetApprovedRestaurants() {
+    const q = query(collection(db, "restaurants"), where("status", "==", RESTAURANT_STATUSES.approved));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function fbGetRestaurantsForCurrentUser() {
+    if (!State.user) return [];
+
+    if (isManager()) {
+        return fbGetRestaurants();
+    }
+
+    if (isCustomer()) {
+        return fbGetApprovedRestaurants();
+    }
+
+    if (isOwner()) {
+        const approved = await fbGetApprovedRestaurants();
+        const own = await fbGetRestaurantByOwner(State.user.id);
+        if (!own) return approved;
+        const byId = new Map(approved.map(r => [r.id, r]));
+        byId.set(own.id, own);
+        return Array.from(byId.values());
+    }
+
+    return fbGetApprovedRestaurants();
 }
 async function fbGetRestaurantByOwner(ownerId) {
     const q = query(collection(db, "restaurants"), where("ownerId", "==", ownerId));
@@ -90,6 +128,46 @@ function fbListenOrders(filter, cb) {
 }
 function fbListenRestaurants(cb) {
     return onSnapshot(collection(db, "restaurants"), snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
+function fbListenRestaurantsByStatus(status, cb) {
+    const q = query(collection(db, "restaurants"), where("status", "==", status));
+    return onSnapshot(q, snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
+async function fbSubmitCustomerRating(orderId, rating) {
+    if (!FB_CONFIGURED) throw new Error("Firebase is not configured.");
+    if (![1, 2, 3, 4, 5].includes(rating)) throw new Error("Invalid rating.");
+
+    await runTransaction(db, async tx => {
+        const orderRef = doc(db, "orders", orderId);
+        const orderSnap = await tx.get(orderRef);
+        if (!orderSnap.exists()) throw new Error("Order not found.");
+        const order = orderSnap.data();
+
+        if (order.customerId !== State.user?.id) throw new Error("Not allowed.");
+        if (order.status !== "Delivered") throw new Error("Order must be delivered first.");
+        if (order.customerRatedAt || order.customerRating) throw new Error("Order already rated.");
+        if (!order.restaurantId) throw new Error("Order restaurant not found.");
+
+        const restaurantRef = doc(db, "restaurants", order.restaurantId);
+        const restSnap = await tx.get(restaurantRef);
+        if (!restSnap.exists()) throw new Error("Restaurant not found.");
+        const r = restSnap.data();
+
+        const oldSum = typeof r.ratingSum === "number" ? r.ratingSum : 0;
+        const oldCount = typeof r.ratingCount === "number" ? r.ratingCount : 0;
+        const newSum = oldSum + rating;
+        const newCount = oldCount + 1;
+        const newAvg = newSum / newCount;
+
+        tx.update(orderRef, { customerRating: rating, customerRatedAt: serverTimestamp() });
+        tx.update(restaurantRef, {
+            ratingSum: newSum,
+            ratingCount: newCount,
+            rating: Math.round(newAvg * 10) / 10,
+        });
+    });
 }
 
 /* ════════════════════════════════════════════════════
@@ -166,7 +244,9 @@ window.App = {
         await App.loadRestaurants();
 
         let target = "home";
-        if (profile.role === "owner") {
+        if (profile.role === "manager") {
+            target = "manager";
+        } else if (profile.role === "owner") {
             let ownerRestaurant = profile.restaurantId
                 ? State.restaurants.find(r => r.id === profile.restaurantId)
                 : null;
@@ -189,12 +269,13 @@ window.App = {
 
     async loadRestaurants() {
         if (!FB_CONFIGURED) throw new Error("Firebase is not configured. The app now uses Firebase only.");
-        State.restaurants = await fbGetRestaurants();
+        State.restaurants = await fbGetRestaurantsForCurrentUser();
     },
 
     startOrderListener() {
         if (State.unsubOrders) State.unsubOrders();
         if (!State.user) return;
+        if (isManager()) return;
         const filter = State.user.role === "customer"
             ? ["customerId", State.user.id]
             : ["ownerId", State.user.id];
@@ -204,10 +285,15 @@ window.App = {
             if (State.currentPage === "tracking") Pages.Tracking.render();
             if (State.currentPage === "history") Pages.History.render();
             if (State.currentPage === "owner") Pages.Owner.renderOrders();
+            Rating.maybePrompt();
         });
     },
 
     showPage(page) {
+        if (State.currentPage === "manager" && page !== "manager" && Pages.Manager?.unsub) {
+            Pages.Manager.unsub();
+            Pages.Manager.unsub = null;
+        }
         document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
         document.getElementById("page-" + page)?.classList.add("active");
         State.currentPage = page;
@@ -219,6 +305,7 @@ window.App = {
             history: Pages.History.render,
             profile: Pages.Profile.init,
             owner: Pages.Owner.init,
+            manager: Pages.Manager.init,
             setup: () => { },
             settings: Pages.Settings.init,
         };
@@ -227,10 +314,14 @@ window.App = {
         UI.closeDropdown();
     },
 
-    goHome() { App.showPage(State.user?.role === "owner" ? "owner" : "home"); },
+    goHome() {
+        if (isManager()) return App.showPage("manager");
+        App.showPage(State.user?.role === "owner" ? "owner" : "home");
+    },
 
     async logout() {
         if (State.unsubOrders) State.unsubOrders();
+        if (Pages.Manager?.unsub) { Pages.Manager.unsub(); Pages.Manager.unsub = null; }
         State.user = null; State.cart = []; State.orders = []; State.restaurants = [];
         await signOut(auth);
         document.getElementById("navbar").style.display = "none";
@@ -276,6 +367,10 @@ window.Cart = {
     async placeOrder() {
         const restaurant = State.restaurants.find(r => r.id === State.cart[0]?.restaurantId);
         if (!restaurant || !State.cart.length) return;
+        if (isCustomer() && !isRestaurantApproved(restaurant)) {
+            alert("This restaurant is not available yet.");
+            return;
+        }
         UI.setBtnLoading("place-order-btn", true, "Placing order…");
         const orderData = {
             customerId: State.user.id, customerName: State.user.name,
@@ -309,9 +404,9 @@ Pages.Home = {
         const grid = document.getElementById("restaurant-grid");
         const empty = document.getElementById("restaurant-empty");
         const q = (document.getElementById("search-input")?.value || "").toLowerCase();
-        const list = State.restaurants.filter(r =>
-            r.name.toLowerCase().includes(q) || (r.cuisine || "").toLowerCase().includes(q)
-        );
+        const list = State.restaurants
+            .filter(r => !isCustomer() || isRestaurantApproved(r))
+            .filter(r => r.name.toLowerCase().includes(q) || (r.cuisine || "").toLowerCase().includes(q));
         if (!list.length) { grid.innerHTML = ""; empty.style.display = "flex"; return; }
         empty.style.display = "none";
         grid.innerHTML = list.map(r => `
@@ -348,7 +443,12 @@ Pages.Restaurant = {
     restaurant: null,
 
     load(id) {
-        Pages.Restaurant.restaurant = State.restaurants.find(r => r.id === id) || null;
+        const r = State.restaurants.find(r => r.id === id) || null;
+        if (isCustomer() && r && !isRestaurantApproved(r)) {
+            alert("This restaurant is not available yet.");
+            return App.showPage("home");
+        }
+        Pages.Restaurant.restaurant = r;
         Pages.Restaurant.init();
     },
 
@@ -589,10 +689,47 @@ Pages.Owner = {
     init() {
         const r = State.restaurants.find(r => r.ownerId === State.user?.id);
         if (!r) { App.showPage("setup"); return; }
+
+        const status = r.status || RESTAURANT_STATUSES.approved;
+        const tabs = document.querySelector(".segment");
+        const ordersTab = document.getElementById("owner-orders-tab");
+        const menuTab = document.getElementById("owner-menu-tab");
+
+        if (status !== RESTAURANT_STATUSES.approved) {
+            if (tabs) tabs.style.display = "none";
+            if (ordersTab) ordersTab.style.display = "block";
+            if (menuTab) menuTab.style.display = "none";
+
+            const list = document.getElementById("owner-orders-list");
+            const empty = document.getElementById("owner-orders-empty");
+            if (empty) empty.style.display = "none";
+            if (list) {
+                list.innerHTML = `
+                  <div class="card">
+                    <h3 style="font-size:16px;font-weight:800;margin-bottom:6px;">Restaurant under review</h3>
+                    <p style="color:var(--text-sub);font-size:13px;line-height:1.6;">
+                      Status: <strong>${status}</strong><br/>
+                      Customers will only see your restaurant once approved.
+                    </p>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+                      ${status === RESTAURANT_STATUSES.rejected ? `<button class="btn btn-primary" onclick="Owner.resubmitForReview()">Resubmit for review</button>` : ""}
+                      <button class="btn btn-secondary" onclick="Owner.toggleEditRestaurant()">Edit details</button>
+                    </div>
+                  </div>
+                `;
+            }
+        } else {
+            if (tabs) tabs.style.display = "flex";
+            if (ordersTab) ordersTab.style.display = "block";
+            if (menuTab) menuTab.style.display = Pages.Owner.currentTab === "menu" ? "block" : "none";
+        }
+
         document.getElementById("owner-restaurant-name").textContent = r.name;
         document.getElementById("owner-restaurant-meta").textContent = `${r.cuisine} · ${r.deliveryTime}`;
-        Pages.Owner.renderOrders();
-        Pages.Owner.renderMenu();
+        if (status === RESTAURANT_STATUSES.approved) {
+            Pages.Owner.renderOrders();
+            Pages.Owner.renderMenu();
+        }
     },
 
     switchTab(tab) {
@@ -604,6 +741,10 @@ Pages.Owner = {
     },
 
     renderOrders() {
+        const r = State.restaurants.find(r => r.ownerId === State.user?.id);
+        const status = r?.status || RESTAURANT_STATUSES.approved;
+        if (status !== RESTAURANT_STATUSES.approved) return;
+
         const list = document.getElementById("owner-orders-list");
         const empty = document.getElementById("owner-orders-empty");
         const active = State.orders.filter(o => o.status !== "Delivered").length;
@@ -651,6 +792,8 @@ Pages.Owner = {
     renderMenu() {
         const r = State.restaurants.find(r => r.ownerId === State.user?.id);
         if (!r) return;
+        const status = r.status || RESTAURANT_STATUSES.approved;
+        if (status !== RESTAURANT_STATUSES.approved) return;
         document.getElementById("menu-count").textContent = `${(r.menu || []).length} item${r.menu?.length !== 1 ? "s" : ""}`;
         document.getElementById("menu-items-list").innerHTML = (r.menu || []).map(item => `
       <div class="menu-mgr-item">
@@ -675,6 +818,18 @@ Pages.Owner = {
         const o = State.orders.find(o => o.id === orderId);
         if (o) { o.status = status; o.statusIndex = statusIndex; }
         Pages.Owner.renderOrders();
+    },
+
+    async resubmitForReview() {
+        const r = State.restaurants.find(r => r.ownerId === State.user?.id);
+        if (!r) return;
+        try {
+            await fbUpdateRestaurant(r.id, { status: RESTAURANT_STATUSES.pending, resubmittedAt: serverTimestamp() });
+            r.status = RESTAURANT_STATUSES.pending;
+            Pages.Owner.init();
+        } catch (e) {
+            alert(e.message || "Could not resubmit for review.");
+        }
     },
 
     toggleEditRestaurant() {
@@ -705,11 +860,19 @@ Pages.Owner = {
             description: document.getElementById("edit-r-desc").value.trim(),
             image: document.getElementById("edit-r-image").value.trim(),
         };
+        // Rejected restaurants are resubmitted automatically when owner saves edits.
+        if ((r.status || RESTAURANT_STATUSES.approved) === RESTAURANT_STATUSES.rejected) {
+            data.status = RESTAURANT_STATUSES.pending;
+            data.resubmittedAt = serverTimestamp();
+        }
         try {
             await fbUpdateRestaurant(r.id, data);
             Object.assign(r, data);
             Pages.Owner.init();
             document.getElementById("edit-restaurant-panel").classList.remove("open");
+            if (data.status === RESTAURANT_STATUSES.pending) {
+                alert("Changes saved and resubmitted for manager review.");
+            }
         } catch (e) {
             alert(e.message || "Could not save restaurant changes.");
             console.error("Restaurant save failed:", e);
@@ -808,7 +971,15 @@ Pages.Setup = {
                 deliveryFee: parseFloat(document.getElementById("setup-fee").value) || 2.99,
                 minOrder: parseFloat(document.getElementById("setup-min").value) || 15,
                 image: document.getElementById("setup-image").value.trim(),
+                status: RESTAURANT_STATUSES.pending,
                 rating: 5.0, menu: [],
+                submittedAt: serverTimestamp(),
+                submittedBy: {
+                    name: State.user.name || "",
+                    email: State.user.email || "",
+                    phone: State.user.phone || "",
+                    address: State.user.address || "",
+                },
             };
             const id = await fbAddRestaurant(data);
             await fbSetUser(State.user.id, { restaurantId: id });
@@ -984,14 +1155,23 @@ window.Apply = {
             // 3. Create restaurant
             const restaurantData = {
                 ownerId: cred.user.uid,
+                status: RESTAURANT_STATUSES.pending,
                 name: Apply.formData.restaurantName,
                 cuisine: Apply.formData.cuisine,
+                address: Apply.formData.address,
                 description: Apply.formData.description,
                 deliveryTime: Apply.formData.deliveryTime,
                 deliveryFee: Apply.formData.deliveryFee,
                 minOrder: Apply.formData.minOrder,
                 image: Apply.formData.coverImage,
                 rating: 5.0,
+                submittedAt: serverTimestamp(),
+                submittedBy: {
+                    name: Apply.formData.ownerName,
+                    email: Apply.formData.email,
+                    phone: Apply.formData.phone,
+                    address: Apply.formData.address,
+                },
                 menu: []
             };
             const restaurantId = await fbAddRestaurant(restaurantData);
@@ -1034,6 +1214,191 @@ window.Apply = {
         document.querySelectorAll('#page-apply .alert').forEach(alert => {
             alert.style.display = 'none';
         });
+    }
+};
+
+/* ── MANAGER ── */
+Pages.Manager = {
+    unsub: null,
+    init() {
+        if (!isManager()) return App.goHome();
+        if (Pages.Manager.unsub) Pages.Manager.unsub();
+
+        Pages.Manager.unsub = fbListenRestaurantsByStatus(RESTAURANT_STATUSES.pending, list => {
+            Pages.Manager.render(list);
+        });
+    },
+
+    render(list) {
+        const empty = document.getElementById("mgr-empty");
+        const wrap = document.getElementById("mgr-list");
+        const badge = document.getElementById("mgr-pending-badge");
+        const n = (list || []).length;
+
+        if (!n) {
+            if (empty) empty.style.display = "flex";
+            if (wrap) wrap.innerHTML = "";
+            if (badge) badge.style.display = "none";
+            return;
+        }
+
+        if (empty) empty.style.display = "none";
+        if (badge) { badge.style.display = "inline-block"; badge.textContent = `${n} pending`; }
+
+        if (!wrap) return;
+        wrap.innerHTML = list.map(r => {
+            const sub = r.submittedBy || {};
+            const created = r.createdAt?.toDate ? r.createdAt.toDate() : null;
+            const createdText = created ? created.toLocaleString() : "";
+            return `
+              <div class="order-card">
+                <div class="order-card-head">
+                  <div>
+                    <div class="order-customer">${r.name || "Unnamed restaurant"}</div>
+                    <div class="order-addr">${r.address || ""}</div>
+                    <div class="order-time">${createdText}</div>
+                    <div class="order-items-text" style="margin-top:8px;">
+                      <strong>Submitted by</strong>: ${sub.name || "—"} · ${sub.email || "—"} · ${sub.phone || "—"}
+                    </div>
+                  </div>
+                  <div style="text-align:right;">
+                    <span class="badge badge-pending">Pending</span>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;">
+                      <button class="btn btn-primary" style="padding:8px 12px;font-size:13px;" onclick="Pages.Manager.approve('${r.id}')">Approve</button>
+                      <button class="btn btn-danger" style="padding:8px 12px;font-size:13px;" onclick="Pages.Manager.reject('${r.id}')">Reject</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="order-items-text">${r.description || ""}</div>
+              </div>
+            `;
+        }).join("");
+    },
+
+    async approve(id) {
+        try {
+            await fbUpdateRestaurant(id, { status: RESTAURANT_STATUSES.approved, reviewedAt: serverTimestamp(), reviewedBy: State.user?.id || "" });
+            await App.loadRestaurants();
+        } catch (e) {
+            alert(e.message || "Could not approve restaurant.");
+        }
+    },
+
+    async reject(id) {
+        try {
+            await fbUpdateRestaurant(id, { status: RESTAURANT_STATUSES.rejected, reviewedAt: serverTimestamp(), reviewedBy: State.user?.id || "" });
+            await App.loadRestaurants();
+        } catch (e) {
+            alert(e.message || "Could not reject restaurant.");
+        }
+    }
+};
+
+/* ── RATING PROMPT ── */
+window.Rating = {
+    currentOrderId: null,
+    isOpen: false,
+    hoveredValue: 0,
+
+    open(order) {
+        if (!order || !isCustomer() || Rating.isOpen) return;
+        Rating.currentOrderId = order.id;
+        Rating.hoveredValue = 0;
+
+        const el = document.getElementById("rating-modal");
+        const nameEl = document.getElementById("rating-restaurant-name");
+        const err = document.getElementById("rating-error");
+        if (!el || !nameEl || !err) return;
+        err.style.display = "none";
+        nameEl.textContent = order.restaurantName || "this restaurant";
+        el.style.display = "flex";
+        el.setAttribute("aria-hidden", "false");
+        Rating.isOpen = true;
+        Rating.renderStars(0);
+    },
+
+    dismiss() {
+        if (Rating.currentOrderId) {
+            try { localStorage.setItem(`tafa7ny_rating_dismissed_${Rating.currentOrderId}`, "1"); } catch { }
+        }
+        Rating.close();
+    },
+
+    close() {
+        const el = document.getElementById("rating-modal");
+        if (el) {
+            el.style.display = "none";
+            el.setAttribute("aria-hidden", "true");
+        }
+        Rating.isOpen = false;
+        Rating.currentOrderId = null;
+        Rating.hoveredValue = 0;
+    },
+
+    preview(val) {
+        Rating.hoveredValue = val;
+        Rating.renderStars(val);
+    },
+
+    renderStars(val) {
+        const wrap = document.getElementById("rating-stars");
+        if (!wrap) return;
+        const stars = wrap.querySelectorAll(".star-btn");
+        stars.forEach((btn, idx) => {
+            btn.classList.toggle("active", idx < val);
+        });
+    },
+
+    async submit(val) {
+        const err = document.getElementById("rating-error");
+        if (!Rating.currentOrderId) return;
+        if (err) err.style.display = "none";
+        try {
+            await fbSubmitCustomerRating(Rating.currentOrderId, val);
+            await App.loadRestaurants();
+            Rating.close();
+        } catch (e) {
+            if (err) {
+                err.textContent = e.message || "Could not submit rating.";
+                err.style.display = "block";
+            } else {
+                alert(e.message || "Could not submit rating.");
+            }
+        }
+    },
+
+    maybePrompt() {
+        if (!isCustomer() || Rating.isOpen) return;
+        if (State.currentPage === "login" || State.currentPage === "apply") return;
+
+        const delivered = (State.orders || []).filter(o => o.status === "Delivered");
+        if (!delivered.length) return;
+
+        const ratedRestaurantIds = new Set(
+            delivered
+                .filter(o => o.customerRatedAt || o.customerRating)
+                .map(o => o.restaurantId)
+                .filter(Boolean)
+        );
+
+        const candidate = delivered.find(o => {
+            if (!o.restaurantId) return false;
+            if (ratedRestaurantIds.has(o.restaurantId)) return false;
+            if (o.customerRatedAt || o.customerRating) return false;
+            try {
+                if (localStorage.getItem(`tafa7ny_rating_dismissed_${o.id}`) === "1") return false;
+            } catch { }
+
+            const all = delivered.filter(x => x.restaurantId === o.restaurantId);
+            const earliest = all.reduce((min, cur) => {
+                const minT = min?.placedAt?.toMillis ? min.placedAt.toMillis() : (min?.placedAt || 0);
+                const curT = cur?.placedAt?.toMillis ? cur.placedAt.toMillis() : (cur?.placedAt || 0);
+                return curT && (!minT || curT < minT) ? cur : min;
+            }, null);
+            return earliest?.id === o.id;
+        });
+
+        if (candidate) Rating.open(candidate);
     }
 };
 
