@@ -42,7 +42,7 @@ const State = {
 };
 
 const ORDER_STATUSES = ["Pending", "Confirmed", "Preparing", "Out for Delivery", "Delivered"];
-const STATUS_CLASSES = { Pending: "badge-pending", Confirmed: "badge-confirmed", Preparing: "badge-preparing", "Out for Delivery": "badge-delivery", Delivered: "badge-delivered" };
+const STATUS_CLASSES = { Pending: "badge-pending", Confirmed: "badge-confirmed", Preparing: "badge-preparing", "Out for Delivery": "badge-delivery", Delivered: "badge-delivered", Cancelled: "badge-cancelled" };
 
 const RESTAURANT_STATUSES = {
     pending: "pending_review",

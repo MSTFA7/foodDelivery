@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Mode Launcher</title>
+    <style>
+        :root {
+            --bg: #f6f7fb;
+            --surface: #ffffff;
+            --text: #141821;
+            --sub: #5a6272;
+            --border: #dfe3eb;
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --danger: #dc2626;
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .wrap {
+            max-width: 920px;
+            margin: 28px auto;
+            padding: 0 16px 28px;
+        }
+
+        .header {
+            margin-bottom: 16px;
+        }
+
+        .header h1 {
+            margin: 0 0 6px;
+            font-size: 24px;
+        }
+
+        .header p {
+            margin: 0;
+            color: var(--sub);
+            font-size: 14px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .role-title {
+            margin: 0 0 10px;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .field {
+            margin-bottom: 8px;
+        }
+
+        .label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: var(--sub);
+        }
+
+        input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 9px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        button, .link-btn {
+            border: 1px solid var(--border);
+            background: #fff;
+            color: var(--text);
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+        .btn-danger { border-color: #fecaca; color: var(--danger); background: #fff5f5; }
+
+        .status {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--sub);
+            min-height: 18px;
+        }
+
+        .status.ok { color: #15803d; }
+        .status.err { color: var(--danger); }
+
+        .quick {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .muted {
+            color: var(--sub);
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 860px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="header">
+            <h1>Test Mode Launcher</h1>
+            <p>Temporary utility page for fast role-based login and smoke testing.</p>
+        </div>
+
+        <div class="card">
+            <div class="quick">
+                <button class="btn-primary" id="open-app-btn">Open App</button>
+                <button id="refresh-auth-btn">Refresh Auth Status</button>
+                <button class="btn-danger" id="signout-btn">Sign Out</button>
+            </div>
+            <div class="status" id="auth-status">Checking auth…</div>
+            <div class="muted">Tip: fill credentials once and they will be saved in this browser for quick reuse.</div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2 class="role-title">Customer</h2>
+                <div class="field">
+                    <label class="label" for="customer-email">Email</label>
+                    <input id="customer-email" type="email" placeholder="customer@test.com" />
+                </div>
+                <div class="field">
+                    <label class="label" for="customer-pass">Password</label>
+                    <input id="customer-pass" type="password" placeholder="••••••••" />
+                </div>
+                <div class="btns">
+                    <button class="btn-primary" data-role="customer">Login Customer</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="role-title">Owner</h2>
+                <div class="field">
+                    <label class="label" for="owner-email">Email</label>
+                    <input id="owner-email" type="email" placeholder="owner@test.com" />
+                </div>
+                <div class="field">
+                    <label class="label" for="owner-pass">Password</label>
+                    <input id="owner-pass" type="password" placeholder="••••••••" />
+                </div>
+                <div class="btns">
+                    <button class="btn-primary" data-role="owner">Login Owner</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="role-title">Manager</h2>
+                <div class="field">
+                    <label class="label" for="manager-email">Email</label>
+                    <input id="manager-email" type="email" placeholder="manager@test.com" />
+                </div>
+                <div class="field">
+                    <label class="label" for="manager-pass">Password</label>
+                    <input id="manager-pass" type="password" placeholder="••••••••" />
+                </div>
+                <div class="btns">
+                    <button class="btn-primary" data-role="manager">Login Manager</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import {
+            getAuth,
+            onAuthStateChanged,
+            signInWithEmailAndPassword,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBheLIUcP75VRKNUv55o_rN1mk-ZaMsKZo",
+            authDomain: "fooddelivery-cca9b.firebaseapp.com",
+            projectId: "fooddelivery-cca9b",
+            storageBucket: "fooddelivery-cca9b.firebasestorage.app",
+            messagingSenderId: "33163698615",
+            appId: "1:33163698615:web:76464e7c92e658b3548832"
+        };
+
+        const app = initializeApp(FIREBASE_CONFIG);
+        const auth = getAuth(app);
+        const statusEl = document.getElementById("auth-status");
+
+        const ROLE_FIELDS = {
+            customer: { email: "customer-email", pass: "customer-pass" },
+            owner: { email: "owner-email", pass: "owner-pass" },
+            manager: { email: "manager-email", pass: "manager-pass" }
+        };
+
+        function setStatus(msg, type = "") {
+            statusEl.textContent = msg;
+            statusEl.className = `status ${type}`.trim();
+        }
+
+        function loadSavedCreds() {
+            for (const role of Object.keys(ROLE_FIELDS)) {
+                const saved = JSON.parse(localStorage.getItem(`testMode:${role}`) || "null");
+                if (!saved) continue;
+                document.getElementById(ROLE_FIELDS[role].email).value = saved.email || "";
+                document.getElementById(ROLE_FIELDS[role].pass).value = saved.pass || "";
+            }
+        }
+
+        function saveCreds(role, email, pass) {
+            localStorage.setItem(`testMode:${role}`, JSON.stringify({ email, pass }));
+        }
+
+        async function loginAs(role) {
+            const fields = ROLE_FIELDS[role];
+            const email = document.getElementById(fields.email).value.trim();
+            const pass = document.getElementById(fields.pass).value;
+
+            if (!email || !pass) {
+                setStatus(`Enter ${role} email/password first.`, "err");
+                return;
+            }
+
+            try {
+                setStatus(`Signing in ${role}…`);
+                await signInWithEmailAndPassword(auth, email, pass);
+                saveCreds(role, email, pass);
+                setStatus(`Signed in as ${email}.`, "ok");
+            } catch (err) {
+                setStatus(err?.message || "Login failed.", "err");
+            }
+        }
+
+        document.querySelectorAll("button[data-role]").forEach(btn => {
+            btn.addEventListener("click", () => loginAs(btn.dataset.role));
+        });
+
+        document.getElementById("open-app-btn").addEventListener("click", () => {
+            window.location.href = "./index.html";
+        });
+
+        document.getElementById("refresh-auth-btn").addEventListener("click", () => {
+            const u = auth.currentUser;
+            if (!u) setStatus("Not signed in.");
+            else setStatus(`Signed in: ${u.email || u.uid}`, "ok");
+        });
+
+        document.getElementById("signout-btn").addEventListener("click", async () => {
+            try {
+                await signOut(auth);
+                setStatus("Signed out.");
+            } catch (err) {
+                setStatus(err?.message || "Sign out failed.", "err");
+            }
+        });
+
+        onAuthStateChanged(auth, user => {
+            if (user) setStatus(`Signed in: ${user.email || user.uid}`, "ok");
+            else setStatus("Not signed in.");
+        });
+
+        loadSavedCreds();
+    </script>
+</body>
+</html>

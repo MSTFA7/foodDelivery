@@ -19,7 +19,7 @@ Object.assign(Rating, {
         Rating.isOpen = true;
         Rating.renderStars(0);
     },
-    dismiss() { if (Rating.currentOrderId) { try { localStorage.setItem(`tafa7ny_rating_dismissed_${Rating.currentOrderId}`, "1"); } catch { } } Rating.close(); },
+    dismiss() { if (Rating.currentOrderId) { try { localStorage.setItem(`akl_rating_dismissed_${Rating.currentOrderId}`, "1"); } catch { } } Rating.close(); },
     close() { const el = document.getElementById("rating-modal"); if (el) { el.style.display = "none"; el.setAttribute("aria-hidden", "true"); } Rating.isOpen = false; Rating.currentOrderId = null; Rating.hoveredValue = 0; },
     preview(val) { Rating.hoveredValue = val; Rating.renderStars(val); },
     renderStars(val) { const wrap = document.getElementById("rating-stars"); if (!wrap) return; const stars = wrap.querySelectorAll(".star-btn"); stars.forEach((btn, idx) => btn.classList.toggle("active", idx < val)); },
@@ -46,7 +46,7 @@ Object.assign(Rating, {
             if (!o.restaurantId) return false;
             if (ratedRestaurantIds.has(o.restaurantId)) return false;
             if (o.customerRatedAt || o.customerRating) return false;
-            try { if (localStorage.getItem(`tafa7ny_rating_dismissed_${o.id}`) === "1") return false; } catch { }
+            try { if (localStorage.getItem(`akl_rating_dismissed_${o.id}`) === "1") return false; } catch { }
             const all = delivered.filter(x => x.restaurantId === o.restaurantId);
             const earliest = all.reduce((min, cur) => {
                 const minT = min?.placedAt?.toMillis ? min.placedAt.toMillis() : (min?.placedAt || 0);
@@ -64,11 +64,11 @@ Object.assign(UI, {
     applyThemeFromToggle(isDark) { UI.applyTheme(isDark); },
     applyTheme(isDark) {
         document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
-        localStorage.setItem("tafa7ny-theme", isDark ? "dark" : "light");
+        localStorage.setItem("akl-theme", isDark ? "dark" : "light");
         const icon = document.getElementById("theme-icon");
         icon.innerHTML = isDark ? `<path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 7a5 5 0 100 10A5 5 0 0012 7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>` : `<path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>`;
     },
-    initTheme() { const saved = localStorage.getItem("tafa7ny-theme") || "light"; UI.applyTheme(saved === "dark"); if (saved === "dark") document.getElementById("setting-dark").checked = true; },
+    initTheme() { const saved = localStorage.getItem("akl-theme") || "light"; UI.applyTheme(saved === "dark"); if (saved === "dark") document.getElementById("setting-dark").checked = true; },
     applyUser() {
         const u = State.user;
         document.getElementById("navbar").style.display = u ? "block" : "none";

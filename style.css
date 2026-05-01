@@ -566,6 +566,11 @@
       color: #2d8a4e;
   }
 
+  .badge-cancelled {
+      background: rgba(180, 35, 24, 0.12);
+      color: #b42318;
+  }
+
   .badge-owner {
       background: var(--surface2);
       color: var(--text-sub);
