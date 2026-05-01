@@ -1827,7 +1827,34 @@
   .rating-stars {
       display: flex;
       align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
       gap: 8px;
+  }
+
+  .modal-close-btn {
+      width: 30px;
+      height: 30px;
+      min-width: 30px;
+      padding: 0 !important;
+      border-radius: 999px;
+      font-size: 17px;
+      line-height: 1;
+      font-weight: 700;
+      color: var(--text-sub);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface2);
+      border-color: var(--border);
+      transition: background .12s ease, color .12s ease, transform .12s ease, border-color .12s ease;
+  }
+
+  .modal-close-btn:hover {
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.06);
+      border-color: var(--text-sub);
+      transform: translateY(-1px);
   }
 
   .star-btn {
@@ -1862,6 +1889,52 @@
       stroke: #f0c040;
   }
 
+  .manager-modal-card {
+      max-width: 760px;
+  }
+
+  .manager-details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 14px;
+  }
+
+  .detail-label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-sub);
+      margin-bottom: 3px;
+  }
+
+  .detail-value {
+      display: block;
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.5;
+      word-break: break-word;
+  }
+
+  .mgrd-menu-list {
+      max-height: 180px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+  }
+
+  .mgrd-menu-item {
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      font-size: 12px;
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 640px) {
       .restaurant-grid {
@@ -1888,5 +1961,9 @@
           width: 32px;
           height: 32px;
           font-size: 12px;
+      }
+
+      .manager-details-grid {
+          grid-template-columns: 1fr;
       }
   }
