@@ -58,6 +58,6 @@ Pages.Manager = {
             modal.setAttribute("aria-hidden", "true");
         }
     },
-    async approve(id) { try { await fbUpdateRestaurant(id, { status: RESTAURANT_STATUSES.approved, reviewedAt: serverTimestamp(), reviewedBy: State.user?.id || "" }); await App.loadRestaurants(); } catch (e) { alert(e.message || "Could not approve restaurant."); } },
-    async reject(id) { try { await fbUpdateRestaurant(id, { status: RESTAURANT_STATUSES.rejected, reviewedAt: serverTimestamp(), reviewedBy: State.user?.id || "" }); await App.loadRestaurants(); } catch (e) { alert(e.message || "Could not reject restaurant."); } }
+    async approve(id) { try { await fbUpdateRestaurant(id, { status: RESTAURANT_STATUSES.approved, reviewedAt: serverTimestamp(), reviewedBy: State.user?.id || "" }); await App.loadRestaurants(); } catch (e) { Toast.error(e.message || "Could not approve restaurant."); } },
+    async reject(id) { try { await fbUpdateRestaurant(id, { status: RESTAURANT_STATUSES.rejected, reviewedAt: serverTimestamp(), reviewedBy: State.user?.id || "" }); await App.loadRestaurants(); } catch (e) { Toast.error(e.message || "Could not reject restaurant."); } }
 };

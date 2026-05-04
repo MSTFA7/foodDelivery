@@ -47,7 +47,7 @@ Pages.Restaurant = {
   load(id) {
     const r = State.restaurants.find(r => r.id === id) || null;
     if (isCustomer() && r && !isRestaurantApproved(r)) {
-      alert("This restaurant is not available yet.");
+      Toast.error("This restaurant is not available yet.");
       return App.showPage("home");
     }
     Pages.Restaurant.restaurant = r;
@@ -60,7 +60,6 @@ Pages.Restaurant = {
     document.getElementById("rdetail-img").src = r.image || "";
     document.getElementById("rdetail-img").alt = r.name;
 
-    // Set blurred background image
     const heroEl = document.querySelector(".restaurant-hero");
     if (heroEl && r.image) {
       heroEl.style.setProperty('--bg-image', `url(${r.image})`);

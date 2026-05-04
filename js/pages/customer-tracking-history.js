@@ -39,7 +39,7 @@ Pages.Tracking = {
         const myOrders = State.orders.filter(o => o.customerId === State.user?.id);
         const order = myOrders[0];
         if (!order || order.status !== "Pending") {
-            alert("Only pending orders can be cancelled.");
+            Toast.error("Only pending orders can be cancelled.");
             return;
         }
         Pages.Tracking.pendingCancelOrderId = order.id;
@@ -65,7 +65,7 @@ Pages.Tracking = {
         const order = State.orders.find(o => o.id === orderId);
         if (!order || order.status !== "Pending") {
             Pages.Tracking.closeCancelModal();
-            return alert("This order can no longer be cancelled.");
+            return Toast.error("This order can no longer be cancelled.");
         }
 
         try {
@@ -76,7 +76,7 @@ Pages.Tracking = {
             Pages.Tracking.render();
             Pages.History.render();
         } catch (e) {
-            alert(e.message || "Could not cancel order.");
+            Toast.error(e.message || "Could not cancel order.");
         }
     }
 };

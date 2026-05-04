@@ -33,7 +33,7 @@ Object.assign(Rating, {
             Rating.close();
         } catch (e) {
             if (err) { err.textContent = e.message || "Could not submit rating."; err.style.display = "block"; }
-            else alert(e.message || "Could not submit rating.");
+            else Toast.error(e.message || "Could not submit rating.");
         }
     },
     maybePrompt() {

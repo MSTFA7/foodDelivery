@@ -18,14 +18,13 @@ Object.assign(Cart, {
         if (!normalized.id) return;
         const cartRestaurantId = State.cart[0]?.restaurantId;
         if (cartRestaurantId && normalized.restaurantId && cartRestaurantId !== normalized.restaurantId) {
-            alert("You can only order from one restaurant at a time. Please finish or clear your current cart first.");
+            Toast.error("You can only order from one restaurant at a time. Please finish or clear your current cart first.");
             return;
         }
 
         const ex = State.cart.find(i => i.id === normalized.id);
         if (ex) {
             ex.qty = Number(ex.qty || 0) + 1;
-            // Heal older malformed cart rows after refactor
             if (!Number.isFinite(Number(ex.price)) || Number(ex.price) === 0) {
                 ex.price = normalized.price;
             }
@@ -57,11 +56,11 @@ Object.assign(Cart, {
         if (!restaurant || !State.cart.length) return;
         const mixedRestaurants = new Set(State.cart.map(i => i.restaurantId).filter(Boolean));
         if (mixedRestaurants.size > 1) {
-            alert("Your cart has items from multiple restaurants. Please keep one restaurant per order.");
+            Toast.error("Your cart has items from multiple restaurants. Please keep one restaurant per order.");
             return;
         }
         if (isCustomer() && !isRestaurantApproved(restaurant)) {
-            alert("This restaurant is not available yet.");
+            Toast.error("This restaurant is not available yet.");
             return;
         }
         if (State.cartPayment === "card") {
@@ -74,13 +73,13 @@ Object.assign(Cart, {
             const month = expiryMatch ? Number(expiryMatch[1]) : 0;
 
             if (cardDigits.length < 13 || cardDigits.length > 19) {
-                return alert("Please enter a valid card number.");
+                return Toast.error("Please enter a valid card number.");
             }
             if (!expiryMatch || month < 1 || month > 12) {
-                return alert("Please enter a valid expiry in MM/YY format.");
+                return Toast.error("Please enter a valid expiry in MM/YY format.");
             }
             if (cvvDigits.length < 3 || cvvDigits.length > 4) {
-                return alert("Please enter a valid CVV.");
+                return Toast.error("Please enter a valid CVV.");
             }
         }
         UI.setBtnLoading("place-order-btn", true, "Placing order…");

@@ -7,11 +7,47 @@ const {
 Object.assign(Auth, {
     currentTab: "login",
 
+    validatePasswordMatch() {
+        if (Auth.currentTab !== "register") return;
+        
+        const password = document.getElementById("auth-password").value;
+        const confirmPassword = document.getElementById("auth-password-confirm").value;
+        const hint = document.getElementById("password-match-hint");
+        const confirmField = document.getElementById("auth-password-confirm");
+        
+        if (!confirmPassword) {
+            hint.style.display = "none";
+            confirmField.style.borderColor = "";
+            return;
+        }
+        
+        if (password === confirmPassword) {
+            hint.textContent = "✓ Passwords match";
+            hint.style.color = "var(--green)";
+            hint.style.display = "block";
+            confirmField.style.borderColor = "var(--green)";
+        } else {
+            hint.textContent = "✗ Passwords do not match";
+            hint.style.color = "var(--red)";
+            hint.style.display = "block";
+            confirmField.style.borderColor = "var(--red)";
+        }
+    },
+
     async submit() {
         const email = document.getElementById("auth-email").value.trim();
         const password = document.getElementById("auth-password").value;
         const name = document.getElementById("reg-name").value.trim();
         UI.setAuthError("");
+        
+        if (Auth.currentTab === "register") {
+            const confirmPassword = document.getElementById("auth-password-confirm").value;
+            if (password !== confirmPassword) {
+                Toast.error("Passwords do not match");
+                return;
+            }
+        }
+        
         UI.setBtnLoading("auth-submit-btn", true, Auth.currentTab === "login" ? "Signing in…" : "Creating account…");
 
         try {
