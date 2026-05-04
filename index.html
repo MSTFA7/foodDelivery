@@ -130,8 +130,7 @@
                             onkeydown="if(event.key==='Enter')Auth.submit()" oninput="Auth.validatePasswordMatch()" />
                     </div>
 
-                    <!-- NEW: Confirm Password Field (only shown during registration) -->
-                    <div class="field" id="confirm-password-field" style="display:block;">
+                    <div class="field" id="confirm-password-field" style="display:none;">
                         <label>Confirm password <span class="req">*</span></label>
                         <input class="input" id="auth-password-confirm" type="password" placeholder="••••••••"
                             onkeydown="if(event.key==='Enter')Auth.submit()" oninput="Auth.validatePasswordMatch()" />
@@ -752,6 +751,16 @@
                                 placeholder="Minimum 6 characters" />
                         </div>
 
+
+
+                        <div class="field">
+                            <label>Confirm password <span class="req">*</span></label>
+                            <input class="input" id="apply-password-confirm" type="password" placeholder="••••••••"
+                                oninput="Apply.validatePasswordMatch()" />
+                            <small id="apply-password-match-hint"
+                                style="display:none;margin-top:6px;font-size:12px;"></small>
+                        </div>
+
                         <div style="display:flex;gap:12px;">
                             <button class="btn btn-secondary btn-full" onclick="Apply.prevStep(2)">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1104,7 +1113,7 @@
     </div>
 
 
-    
+
     <script src="js/toast.js"></script>
     <script src="script.js" type="module"></script>
 </body>

@@ -87,7 +87,23 @@ Object.assign(UI, {
     refreshOrderBadges() { UI.updateCartBadge(); const activeOrders = State.orders.filter(o => o.status !== "Delivered" && o.ownerId === State.user?.id); const nb = document.getElementById("nav-active-orders"); if (State.user?.role === "owner" && activeOrders.length) { nb.textContent = `${activeOrders.length} active`; nb.style.display = "inline-block"; } else nb.style.display = "none"; },
     toggleDropdown() { document.getElementById("profile-dropdown").classList.toggle("open"); },
     closeDropdown() { document.getElementById("profile-dropdown").classList.remove("open"); },
-    switchLoginTab(tab) { Auth.currentTab = tab; document.getElementById("tab-login").classList.toggle("active", tab === "login"); document.getElementById("tab-register").classList.toggle("active", tab === "register"); document.getElementById("reg-fields").style.display = tab === "register" ? "block" : "none"; document.getElementById("auth-submit-btn").textContent = tab === "login" ? "Sign in" : "Create account"; UI.setAuthError(""); },
+    switchLoginTab(tab) {
+        Auth.currentTab = tab;
+        const isRegister = (tab === "register");
+
+        document.getElementById("tab-login").classList.toggle("active", !isRegister);
+        document.getElementById("tab-register").classList.toggle("active", isRegister);
+        document.getElementById("reg-fields").style.display = isRegister ? "block" : "none";
+
+        const confirmField = document.getElementById("confirm-password-field");
+        if (confirmField) {
+            confirmField.style.display = isRegister ? "block" : "none";
+        }
+
+        document.getElementById("auth-submit-btn").textContent = isRegister ? "Create account" : "Sign in";
+
+        UI.setAuthError("");
+    },
     setAuthError(msg) { const el = document.getElementById("auth-error"); el.textContent = msg; el.style.display = msg ? "block" : "none"; },
     setBtnLoading(id, loading, text) { const btn = document.getElementById(id); if (!btn) return; btn.disabled = loading; btn.innerHTML = loading ? `<span class="spinner"></span> ${text}` : text; },
     previewImage(input, previewId) { const wrap = document.getElementById(previewId); const img = wrap?.querySelector("img"); const url = input?.value?.trim(); if (!url || !wrap || !img) { wrap?.classList.remove("show"); return; } img.src = url; img.onload = () => wrap.classList.add("show"); img.onerror = () => wrap.classList.remove("show"); }
