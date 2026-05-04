@@ -458,13 +458,13 @@
                             Credit / debit card
                         </label>
                         <div class="card-fields" id="card-fields" style="display:none;">
-                            <div class="field"><label>Card number</label><input class="input"
-                                    placeholder="1234 5678 9012 3456" maxlength="19" /></div>
+                            <div class="field"><label>Card number</label><input class="input" id="card-number"
+                                    placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric" /></div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                                <div class="field"><label>Expiry</label><input class="input" placeholder="MM/YY"
-                                        maxlength="5" /></div>
-                                <div class="field"><label>CVV</label><input class="input" placeholder="123"
-                                        maxlength="3" type="password" /></div>
+                                <div class="field"><label>Expiry</label><input class="input" id="card-expiry"
+                                        placeholder="MM/YY" maxlength="5" inputmode="numeric" /></div>
+                                <div class="field"><label>CVV</label><input class="input" id="card-cvv" placeholder="123"
+                                        maxlength="3" type="password" inputmode="numeric" /></div>
                             </div>
                         </div>
                     </div>
@@ -631,7 +631,7 @@
     <div id="page-owner" class="page">
         <div style="background:var(--bg);padding:32px 0 48px;">
             <div class="container">
-                <div class="owner-header">
+                <div class="owner-header" id="owner-header">
                     <div>
                         <h2 id="owner-restaurant-name">My Restaurant</h2>
                         <p id="owner-restaurant-meta"></p>

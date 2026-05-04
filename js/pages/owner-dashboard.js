@@ -31,6 +31,16 @@ Pages.Owner = {
         }
         document.getElementById("owner-restaurant-name").textContent = r.name;
         document.getElementById("owner-restaurant-meta").textContent = `${r.cuisine} · ${r.deliveryTime}`;
+        const header = document.getElementById("owner-header");
+        if (header) {
+            if (r.image) {
+                header.classList.add("has-cover");
+                header.style.backgroundImage = `linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.60)), url('${r.image}')`;
+            } else {
+                header.classList.remove("has-cover");
+                header.style.backgroundImage = "";
+            }
+        }
         if (status === RESTAURANT_STATUSES.approved) { Pages.Owner.renderOrders(); Pages.Owner.renderMenu(); }
     },
     switchTab(tab) { Pages.Owner.currentTab = tab; document.getElementById("seg-orders").classList.toggle("active", tab === "orders"); document.getElementById("seg-menu").classList.toggle("active", tab === "menu"); document.getElementById("owner-orders-tab").style.display = tab === "orders" ? "block" : "none"; document.getElementById("owner-menu-tab").style.display = tab === "menu" ? "block" : "none"; },

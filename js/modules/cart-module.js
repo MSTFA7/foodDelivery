@@ -16,6 +16,11 @@ Object.assign(Cart, {
             image: item?.image || ""
         };
         if (!normalized.id) return;
+        const cartRestaurantId = State.cart[0]?.restaurantId;
+        if (cartRestaurantId && normalized.restaurantId && cartRestaurantId !== normalized.restaurantId) {
+            alert("You can only order from one restaurant at a time. Please finish or clear your current cart first.");
+            return;
+        }
 
         const ex = State.cart.find(i => i.id === normalized.id);
         if (ex) {
@@ -50,9 +55,33 @@ Object.assign(Cart, {
     async placeOrder() {
         const restaurant = State.restaurants.find(r => r.id === State.cart[0]?.restaurantId);
         if (!restaurant || !State.cart.length) return;
+        const mixedRestaurants = new Set(State.cart.map(i => i.restaurantId).filter(Boolean));
+        if (mixedRestaurants.size > 1) {
+            alert("Your cart has items from multiple restaurants. Please keep one restaurant per order.");
+            return;
+        }
         if (isCustomer() && !isRestaurantApproved(restaurant)) {
             alert("This restaurant is not available yet.");
             return;
+        }
+        if (State.cartPayment === "card") {
+            const rawCard = document.getElementById("card-number")?.value || "";
+            const rawExpiry = document.getElementById("card-expiry")?.value || "";
+            const rawCvv = document.getElementById("card-cvv")?.value || "";
+            const cardDigits = rawCard.replace(/\D/g, "");
+            const cvvDigits = rawCvv.replace(/\D/g, "");
+            const expiryMatch = rawExpiry.match(/^(\d{2})\/(\d{2})$/);
+            const month = expiryMatch ? Number(expiryMatch[1]) : 0;
+
+            if (cardDigits.length < 13 || cardDigits.length > 19) {
+                return alert("Please enter a valid card number.");
+            }
+            if (!expiryMatch || month < 1 || month > 12) {
+                return alert("Please enter a valid expiry in MM/YY format.");
+            }
+            if (cvvDigits.length < 3 || cvvDigits.length > 4) {
+                return alert("Please enter a valid CVV.");
+            }
         }
         UI.setBtnLoading("place-order-btn", true, "Placing order…");
         const orderData = {
@@ -95,4 +124,18 @@ Object.defineProperties(Cart, {
             return Cart.subtotal + Cart.deliveryFee;
         }
     }
+});
+
+document.getElementById("card-number")?.addEventListener("input", e => {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 19);
+    e.target.value = digits.replace(/(.{4})/g, "$1 ").trim();
+});
+
+document.getElementById("card-expiry")?.addEventListener("input", e => {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+    e.target.value = digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+});
+
+document.getElementById("card-cvv")?.addEventListener("input", e => {
+    e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
 });
